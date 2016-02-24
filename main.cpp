@@ -5,7 +5,8 @@
 #include <string>
 #include <vector>
 
-void get_data(const std::string &filename, double *data, int N);
+void get_data(const std::string &filename,
+              std::vector<std::vector<double> > &data);
 void write_difference(const std::string &filename,
                       const std::string &diff_file,
                       const std::vector<std::vector<double> > &diff);
@@ -31,72 +32,61 @@ int main(int argc, char **argv)
   const std::string file_1    = std::string(argv[2]);
   const std::string diff_file = std::string(argv[3]);
 
-  std::vector<int> sizes(argc - 4);
-  for (int i = 4; i < argc; ++i)
-    sizes[i-4] = atoi(argv[i]);
+  int n_datasets = argc - 4; // number of distinct solutions
+
+  std::vector<std::vector<double> > data_0(n_datasets); // from file_0
+  std::vector<std::vector<double> > data_1(n_datasets); // from file_1
+  std::vector<std::vector<double> > diff(n_datasets); // difference
 
   std::cout << "file_0    = " << file_0 << "\n";
   std::cout << "file_1    = " << file_1 << "\n";
   std::cout << "diff_file = " << diff_file << "\n";
-  for (size_t i = 0; i < sizes.size(); ++i)
-    std::cout << "K" << i+1 << "        = " << sizes[i] << "\n";
-
-
-  double *data_0 = new double[N];
-  double *data_1 = new double[N];
-  double *diff   = new double[N];
-
-  get_data(file_0, data_0, N);
-  get_data(file_1, data_1, N);
-
-  double L2_0 = 0, L2_1 = 0, L2_diff = 0;
-  for (int i = 0; i < N; ++i)
+  for (size_t i = 0; i < n_datasets; ++i)
   {
-    const double d0 = data_0[i];
-    const double d1 = data_1[i];
-    L2_0 += d0 * d0;
-    L2_1 += d1 * d1;
-    diff[i] = d0 - d1;
-    L2_diff += diff[i] * diff[i];
+    int K = atoi(argv[i + 4]);
+    std::cout << "K" << i+1 << "        = " << K << "\n";
+    data_0[i].resize(K);
+    data_1[i].resize(K);
+    diff[i].resize(K);
   }
-//  for (int i = 0; i < 101; ++i)
-//  {
-//    for (int j = 0; j < 101*3; ++j)
-//    {
-//      const int k = i*101*3 + j;
-//      const double d0 = data_0[(100-i)*101*3 + j];
-//      const double d1 = data_1[k];
-//      L2_0 += d0 * d0;
-//      L2_1 += d1 * d1;
-//      diff[k] = d0 - d1;
-//      L2_diff += diff[k] * diff[k];
-//    }
-//  }
 
-  L2_0 = sqrt(L2_0);
-  L2_1 = sqrt(L2_1);
-  L2_diff = sqrt(L2_diff);
+  get_data(file_0, data_0);
+  get_data(file_1, data_1);
 
-  std::cout << "L2_0 = " << L2_0 << std::endl;
-  std::cout << "L2_1 = " << L2_1 << std::endl;
-  std::cout << "L2_diff = " << L2_diff << " = " << L2_diff * 100 << " %" << std::endl;
+  for (size_t d = 0; d < data_0.size(); ++d)
+  {
+    double L2_0 = 0, L2_1 = 0, L2_diff = 0;
+    for (size_t i = 0; i < data_0[d].size(); ++i)
+    {
+      const double d0 = data_0[d][i];
+      const double d1 = data_1[d][i];
+      L2_0 += d0 * d0;
+      L2_1 += d1 * d1;
+      diff[d][i] = d0 - d1;
+      L2_diff += diff[d][i] * diff[d][i];
+    }
+    L2_0 = sqrt(L2_0);
+    L2_1 = sqrt(L2_1);
+    L2_diff = sqrt(L2_diff);
 
-  if (!diff_file.empty())
-    write_difference(file_0, diff_file, diff, N);
+    std::cout << "dataset " << d+1 << std::endl;
+    std::cout << "L2_0 = " << L2_0 << std::endl;
+    std::cout << "L2_1 = " << L2_1 << std::endl;
+    std::cout << "L2_diff = " << L2_diff << " = " << L2_diff * 100 << " %"
+              << std::endl;
+  }
 
-  delete[] data_0;
-  delete[] data_1;
-  delete[] diff;
+  write_difference(file_0, diff_file, diff);
 
   return 0;
-
 }
 
 
 
 
 
-void get_data(const std::string &filename, double *data, int N)
+void get_data(const std::string &filename,
+              std::vector<std::vector<double> > &data)
 {
   std::ifstream in(filename.c_str());
   if (!in)
@@ -110,10 +100,13 @@ void get_data(const std::string &filename, double *data, int N)
   for (int i = 0; i < 6; ++i)
     getline(in, tmp);
 
-  for (int i = 0; i < N; ++i)
-    in >> data[i];
-
-  in.close();
+  for (size_t d = 0; d < data.size(); ++d)
+  {
+    for (size_t i = 0; i < data[d].size(); ++i)
+      in >> data[d][i];
+    for (int i = 0; i < 2; ++i)
+      getline(in, tmp);
+  }
 }
 
 
@@ -121,8 +114,7 @@ void get_data(const std::string &filename, double *data, int N)
 
 void write_difference(const std::string &filename,
                       const std::string &diff_file,
-                      double *diff,
-                      int N)
+                      const std::vector<std::vector<double> > &diff)
 {
   std::ifstream in(filename.c_str());
   if (!in)
@@ -149,16 +141,21 @@ void write_difference(const std::string &filename,
   }
 
   double tmp;
-  for (int i = 0; i < N; ++i)
+  for (size_t d = 0; d < diff.size(); ++d)
   {
-    in >> tmp;
-    out << diff[i] << " ";
+    for (size_t i = 0; i < diff[d].size(); ++i)
+    {
+      in >> tmp;
+      out << diff[d][i] << " ";
+    }
+    for (int i = 0; i < 2; ++i)
+    {
+      getline(in, line);
+      out << line << "\n";
+    }
   }
 
   while (getline(in, line))
     out << line << "\n";
-
-  out.close();
-  in.close();
 }
 
