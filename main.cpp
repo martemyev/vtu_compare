@@ -104,7 +104,7 @@ void get_data(const std::string &filename,
   {
     for (size_t i = 0; i < data[d].size(); ++i)
       in >> data[d][i];
-    for (int i = 0; i < 2; ++i)
+    for (int i = 0; i < 3; ++i)
       getline(in, tmp);
   }
 }
@@ -148,7 +148,8 @@ void write_difference(const std::string &filename,
       in >> tmp;
       out << diff[d][i] << " ";
     }
-    for (int i = 0; i < 2; ++i)
+//    out << "\n";
+    for (int i = 0; i < 3; ++i)
     {
       getline(in, line);
       out << line << "\n";
